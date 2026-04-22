@@ -121,6 +121,10 @@ Maktab Fee: alaqsacenter210@gmail.com
 
 <script>
 
+/* ================= PASSWORD ================= */
+const ADMIN_PASSWORD = "Pakistan2026$";
+let isAdmin = false;
+
 /* ================= STORAGE ================= */
 let stored = JSON.parse(localStorage.getItem("masjid_final")) || {
     maghribOffset: 0,
@@ -161,7 +165,7 @@ function toMin(t){
     return h*60+m;
 }
 
-/* ================= MAGHRIB FIX (Azaan + Iqamah linked) ================= */
+/* ================= MAGHRIB FIX ================= */
 function getAzan(name){
 
     if(name==="Maghrib"){
@@ -190,9 +194,27 @@ setInterval(()=>{
         new Date().toLocaleTimeString();
 },1000);
 
+/* ================= PASSWORD CHECK ================= */
+function checkPassword(){
+    let pass = prompt("Enter Admin Password:");
+    if(pass === ADMIN_PASSWORD){
+        isAdmin = true;
+        alert("Access Granted ✔");
+        return true;
+    } else {
+        alert("Wrong Password ❌");
+        return false;
+    }
+}
+
 /* ================= EDIT IQAMAH ================= */
 function editIq(n){
-    let v=prompt("Edit Iqamah", iqamah[n]);
+
+    if(!isAdmin){
+        if(!checkPassword()) return;
+    }
+
+    let v = prompt("Edit Iqamah", iqamah[n]);
     if(v){
         iqamah[n]=v;
         save();
@@ -200,8 +222,13 @@ function editIq(n){
     }
 }
 
-/* ================= MAGHRIB OFFSET BUTTON ================= */
+/* ================= MAGHRIB OFFSET ================= */
 document.getElementById("magBtn").onclick=()=>{
+
+    if(!isAdmin){
+        if(!checkPassword()) return;
+    }
+
     let v=prompt("Enter Maghrib offset minutes", stored.maghribOffset);
     if(v!==null){
         stored.maghribOffset=parseInt(v)||0;
@@ -238,7 +265,6 @@ function render(){
 
         let iqValue = iqamah[n];
 
-        // 🔥 MAGHRIB IQAMAH NOW FOLLOWS OFFSET TOO
         if(n === "Maghrib"){
             iqValue = getAzan("Maghrib");
         }
