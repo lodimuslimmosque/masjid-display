@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>Lodi Muslim Masjid</title>
+
+<style>
+
+body {
+    margin: 0;
+    background: radial-gradient(circle at top, #061a33, #000);
+    font-family: Arial;
+    color: white;
+}
+
+#barx {
+    text-align: center;
+    font-size: 60px;
+    font-weight: 900;
+    color: #4aa3ff;
+    text-shadow: 3px 3px 0 #000, 6px 6px 15px rgba(0,0,0,0.8);
+}
+
+#address {
+    text-align: center;
+    font-size: 22px;
+    opacity: 0.9;
+}
+
+#clock {
+    text-align: center;
+    font-size: 70px;
+    color: red;
+    font-weight: 900;
+    text-shadow: 0 0 15px red, 3px 3px 6px black;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: rgba(255,255,255,0.05);
+}
+
+td, th {
+    border: 1px solid rgba(255,0,0,0.25);
+    padding: 18px;
+    text-align: center;
+    font-size: 48px;
+    font-weight: 900;
+    text-shadow: 2px 2px 5px black;
+}
+
+.next {
+    background: linear-gradient(135deg, #1e5eff, #0033ff) !important;
+    color: white !important;
+}
+
+.iq {
+    cursor: pointer;
+    color: #00ffd5;
+}
+
+button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 18px;
+    font-size: 20px;
+    background: black;
+    border: 2px solid red;
+    color: white;
+}
+
+#zelle {
+    margin-top: 30px;
+    padding: 25px;
+    text-align: center;
+    font-size: 34px;
+    font-weight: 900;
+    color: #00ffcc;
+    text-shadow: 2px 2px 10px black;
+}
+
+#zelle a {
+    color: yellow;
+    display: block;
+    margin-top: 10px;
+    font-size: 30px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="barx">LODI MUSLIM MASJID</div>
+<div id="address">701 S Hutchins St, Lodi, CA 95240</div>
+
+<div id="clock"></div>
+
+<table>
+<thead>
+<tr>
+<th>Salah</th>
+<th>Azaan</th>
+<th>Iqamah</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+
+<button id="magBtn">Maghrib Offset (minutes)</button>
+
+<div id="zelle">
+Zelle Donation: 209-327-7472
+<br>
+<a href="mailto:alaqsacenter210@gmail.com">
+Maktab Fee: alaqsacenter210@gmail.com
+</a>
+</div>
+
+<script>
+
+/* ================= STORAGE ================= */
+let stored = JSON.parse(localStorage.getItem("masjid_final")) || {
+    maghribOffset: 0,
+    iqamah: {
+        Fajr: "05:45 AM",
+        Dhuhr: "01:45 PM",
+        Asr: "06:15 PM",
+        Maghrib: "07:50 PM",
+        Isha: "09:15 PM",
+        Jummah: "02:45 PM"
+    }
+};
+
+let iqamah = stored.iqamah;
+
+/* ================= BASE AZAAN ================= */
+const baseAzan = {
+    Fajr: "05:02 AM",
+    Dhuhr: "01:04 PM",
+    Asr: "05:50 PM",
+    Maghrib: "07:50 PM",
+    Isha: "09:06 PM"
+};
+
+/* ================= SAVE ================= */
+function save(){
+    localStorage.setItem("masjid_final", JSON.stringify(stored));
+}
+
+/* ================= TIME ================= */
+function toMin(t){
+    let [time,ampm]=t.split(" ");
+    let [h,m]=time.split(":").map(Number);
+
+    if(ampm==="PM"&&h!==12)h+=12;
+    if(ampm==="AM"&&h===12)h=0;
+
+    return h*60+m;
+}
+
+/* ================= MAGHRIB FIX (Azaan + Iqamah linked) ================= */
+function getAzan(name){
+
+    if(name==="Maghrib"){
+        let [t,ampm]=baseAzan.Maghrib.split(" ");
+        let [h,m]=t.split(":").map(Number);
+
+        let d=new Date();
+        d.setHours(h);
+        d.setMinutes(m + stored.maghribOffset);
+
+        let hh=d.getHours();
+        let mm=d.getMinutes();
+
+        let ap=hh>=12?"PM":"AM";
+        hh=hh%12||12;
+
+        return `${hh}:${String(mm).padStart(2,'0')} ${ap}`;
+    }
+
+    return baseAzan[name];
+}
+
+/* ================= CLOCK ================= */
+setInterval(()=>{
+    document.getElementById("clock").innerText =
+        new Date().toLocaleTimeString();
+},1000);
+
+/* ================= EDIT IQAMAH ================= */
+function editIq(n){
+    let v=prompt("Edit Iqamah", iqamah[n]);
+    if(v){
+        iqamah[n]=v;
+        save();
+        render();
+    }
+}
+
+/* ================= MAGHRIB OFFSET BUTTON ================= */
+document.getElementById("magBtn").onclick=()=>{
+    let v=prompt("Enter Maghrib offset minutes", stored.maghribOffset);
+    if(v!==null){
+        stored.maghribOffset=parseInt(v)||0;
+        save();
+        render();
+    }
+};
+
+/* ================= NEXT SALAH ================= */
+function nextIndex(order){
+    let now=new Date().getHours()*60 + new Date().getMinutes();
+
+    for(let i=0;i<order.length;i++){
+        let iq=toMin(iqamah[order[i]]);
+        if(now <= iq + 10){
+            return i;
+        }
+    }
+    return 0;
+}
+
+/* ================= RENDER ================= */
+function render(){
+
+    let order=["Fajr","Dhuhr","Asr","Maghrib","Isha","Jummah"];
+    let next = nextIndex(order);
+
+    let table=document.getElementById("table");
+    table.innerHTML="";
+
+    for(let i=0;i<order.length;i++){
+
+        let n=order[i];
+
+        let iqValue = iqamah[n];
+
+        // 🔥 MAGHRIB IQAMAH NOW FOLLOWS OFFSET TOO
+        if(n === "Maghrib"){
+            iqValue = getAzan("Maghrib");
+        }
+
+        let row=document.createElement("tr");
+
+        if(i===next){
+            row.className="next";
+        }
+
+        row.innerHTML=`
+            <td>${n}</td>
+            <td>${getAzan(n)}</td>
+            <td class="iq" onclick="editIq('${n}')">${iqValue}</td>
+        `;
+
+        table.appendChild(row);
+    }
+}
+
+/* INIT */
+render();
+
+</script>
+
+</body>
+</html>
