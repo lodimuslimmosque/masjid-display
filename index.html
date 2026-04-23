@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LODI MUSLIM MASJID – Iqamah Times</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  body {
+    font-family: "Segoe UI", sans-serif;
+    background: #0b1724;
+    color: #ffffff;
+    margin: 0;
+    padding: 10px;
+  }
+  * { text-shadow: none !important; }
+
+  .header-block {
+    text-align: center;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .masjid-name {
+    font-size: 3vw;
+    font-weight: 800;
+  }
+  .masjid-address {
+    font-size: 1.5vw;
+    color: #a8b4c9;
+  }
+  .digital-clock {
+    font-size: 5vw;
+    font-weight: 700;
+    color: #00eaff;
+    margin: 10px 0;
+    font-family: 'Courier New', monospace;
+  }
+  .date-row {
+    font-size: 1.8vw;
+    color: #d0d8e5;
+  }
+  .admin-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    padding: 4px 10px;
+    font-size: 0.9rem;
+    border-radius: 4px;
+    border: none;
+    background: #444f63;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  #countdown-bar {
+    background: #0a7a2f;
+    padding: 12px;
+    margin: 15px auto;
+    text-align: center;
+    font-weight: 900;
+    border-radius: 8px;
+    width: 95%;
+    color: #ffffff;
+    font-size: 2.8vw;
+    transition: font-size 0.2s ease;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #111c2b;
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 2vw;
+  }
+  th, td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #22324a;
+  }
+  th {
+    background: #152338;
+    font-weight: 700;
+  }
+  tr:nth-child(even) { background: #101a29; }
+  tr:nth-child(odd) { background: #0d1724; }
+
+  .highlight {
+    background: #0a7a2f !important;
+    color: #ffffff !important;
+    font-weight: 900;
+  }
+
+  /* FIX: No clock icon, full AM/PM visible */
+  input.iqamah-input {
+    width: 160px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #3b4f6b;
+    background: #0b1724;
+    color: #ffffff;
+    text-align: center;
+    font-size: 1.8vw;
+  }
+  input.iqamah-input:disabled { opacity: 0.6; }
+
+  .jummah-row {
+    background: #1f3b2a !important;
+    font-weight: 900;
+  }
+
+  .config-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 1.5vw;
+    color: #c3d0e0;
+    flex-wrap: wrap;
+  }
+
+  .config-row input {
+    width: 80px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid #3b4f6b;
+    background: #0b1724;
+    color: #ffffff;
+    text-align: center;
+  }
+
+  .btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: none;
+    background: #1f6feb;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.5vw;
+  }
+
+  .footer-note {
+    margin-top: 20px;
+    font-size: 1.8vw;
+    color: #9ad1ff;
+    text-align: center;
+    font-weight: 600;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="header-block">
+  <button id="admin-login-btn" class="admin-btn">Admin Login</button>
+
+  <div class="masjid-name">LODI MUSLIM MASJID</div>
+  <div class="masjid-address">701 S HUTCHINS ST · LODI, CA 95240</div>
+
+  <div id="digital-clock" class="digital-clock">--:--:--</div>
+
+  <div class="date-row">
+    <div id="gregorian-date"></div>
+  </div>
+</div>
+
+<div id="countdown-bar">Loading...</div>
+
+<div class="container">
+
+  <h2 style="text-align:center;margin:0;">Iqamah Times</h2>
+
+  <div class="config-row" id="config-row">
+    <label>Maghrib Offset (min):
+      <input type="number" id="maghrib-offset-input" value="3" />
+    </label>
+    <button class="btn" id="save-config-btn">Save Offset</button>
+    <button class="btn" id="reset-iqamah-btn" style="background:#444f63;">Reset Iqamah</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Prayer</th>
+        <th>Adhan</th>
+        <th>Iqamah</th>
+      </tr>
+    </thead>
+    <tbody id="prayer-table-body"></tbody>
+  </table>
+
+  <div class="footer-note">
+    Donate/Pay Masjid's Monthly Donation (ZELLE): 209-327-7472<br>
+    Pay Maktab Fee (ZELLE): alaqsacenter210@gmail.com
+  </div>
+
+</div>
+
+<script>
+/* ============================
+   CONFIG & STATIC SCHEDULE
+============================ */
+
+const APP_KEY = "lodi_prayer_app_v1_static";
+const ADMIN_PASSWORD = "Pakistan2026$";
+let isAdmin = false;
+
+// TODAY Maghrib = 7:51 PM
+const STATIC_ADHAN = {
+  Fajr:   "05:30 AM",
+  Dhuhr:  "01:15 PM",
+  Asr:    "05:00 PM",
+  Maghrib:"07:51 PM",
+  Isha:   "09:00 PM"
+};
+
+const CONFIG = {
+  defaultMaghribOffset: 3,
+  defaultIqamah: {
+    Fajr:   "06:00 AM",
+    Dhuhr:  "01:30 PM",
+    Asr:    "05:15 PM",
+    Maghrib:"07:54 PM",
+    Isha:   "09:15 PM"
+  },
+  jummahIqamah: "2:45 PM"
+};
+
+/* ============================
+   STORAGE
+============================ */
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(APP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveState(state) {
+  localStorage.setItem(APP_KEY, JSON.stringify(state));
+}
+function getInitialState() {
+  return loadState() || {
+    maghribOffset: CONFIG.defaultMaghribOffset,
+    iqamah: { ...CONFIG.defaultIqamah }
+  };
+}
+
+/* ============================
+   TIME HELPERS
+============================ */
+
+function parse12h(str) {
+  return new Date("1970-01-01 " + str);
+}
+
+function to12h(dateObj) {
+  return dateObj.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+}
+
+function addMinutes(dateObj, minutes) {
+  return new Date(dateObj.getTime() + minutes * 60000);
+}
+
+/* ============================
+   RENDER TABLE
+============================ */
+
+function render() {
+  const state = getInitialState();
+  const tbody = document.getElementById("prayer-table-body");
+  tbody.innerHTML = "";
+
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  const now = new Date();
+  let upcoming = null;
+
+  const adhanTimes = {
+    Fajr:    parse12h(STATIC_ADHAN.Fajr),
+    Dhuhr:   parse12h(STATIC_ADHAN.Dhuhr),
+    Asr:     parse12h(STATIC_ADHAN.Asr),
+    Maghrib: addMinutes(parse12h(STATIC_ADHAN.Maghrib), state.maghribOffset),
+    Isha:    parse12h(STATIC_ADHAN.Isha)
+  };
+
+  // Determine next prayer based on Iqamah (correct behavior)
+  prayers.forEach(prayer => {
+    const iqamahTime = parse12h(state.iqamah[prayer]);
+    if (iqamahTime > now && upcoming === null) {
+      upcoming = prayer;
+    }
+  });
+
+  prayers.forEach(prayer => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${prayer}</td>
+      <td>${to12h(adhanTimes[prayer])}</td>
+      <td><input class="iqamah-input" data-prayer="${prayer}"
+                 value="${state.iqamah[prayer]}"
+                 ${isAdmin ? "" : "disabled"} /></td>
+    `;
+
+    if (prayer === upcoming) tr.classList.add("highlight");
+
+    tbody.appendChild(tr);
+  });
+
+  // Jumu'ah row
+  const jummahRow = document.createElement("tr");
+  jummahRow.className = "jummah-row";
+  jummahRow.innerHTML = `
+    <td>Jumu’ah</td>
+    <td>${to12h(adhanTimes.Dhuhr)}</td>
+    <td>2:45 PM</td>
+  `;
+  tbody.appendChild(jummahRow);
+
+  document.getElementById("maghrib-offset-input").value = state.maghribOffset;
+  document.getElementById("maghrib-offset-input").disabled = !isAdmin;
+  document.getElementById("save-config-btn").disabled = !isAdmin;
+  document.getElementById("reset-iqamah-btn").disabled = !isAdmin;
+
+  document.querySelectorAll(".iqamah-input").forEach(input => {
+    input.addEventListener("change", onIqamahChange);
+  });
+}
+
+/* ============================
+   COUNTDOWN BAR
+============================ */
+
+function updateCountdownBar() {
+  const state = getInitialState();
+  const bar = document.getElementById("countdown-bar");
+
+  const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+  const now = new Date();
+
+  const adhanTimes = {
+    Fajr:    parse12h(STATIC_ADHAN.Fajr),
+    Dhuhr:   parse12h(STATIC_ADHAN.Dhuhr),
+    Asr:     parse12h(STATIC_ADHAN.Asr),
+    Maghrib: addMinutes(parse12h(STATIC_ADHAN.Maghrib), state.maghribOffset),
+    Isha:    parse12h(STATIC_ADHAN.Isha)
+  };
+
+  let nextPrayer = null;
+  let nextAdhan = null;
+  let nextIqamah = null;
+
+  // Next prayer based on Iqamah
+  for (let prayer of prayers) {
+    const iqamahTime = parse12h(getInitialState().iqamah[prayer]);
+    if (iqamahTime > now) {
+      nextPrayer = prayer;
+      nextAdhan = adhanTimes[prayer];
+      nextIqamah = iqamahTime;
+      break;
+    }
+  }
+
+  // If no more prayers today → next is tomorrow Fajr
+  if (!nextPrayer) {
+    nextPrayer = "Fajr";
+    nextAdhan = addMinutes(parse12h(STATIC_ADHAN.Fajr), 24 * 60);
+    nextIqamah = addMinutes(parse12h(getInitialState().iqamah.Fajr), 24 * 60);
+
+    bar.textContent = `00 Hours 00 Minutes until ${nextPrayer} Iqamah`;
+    return;
+  }
+
+  const nowMs = now.getTime();
+  const adhanMs = nextAdhan.getTime();
+  const iqamahMs = nextIqamah.getTime();
+
+  if (nowMs >= iqamahMs) {
+    bar.textContent = `IQAMAH TIME for ${nextPrayer}`;
+    return;
+  }
+
+  if (nowMs >= adhanMs) {
+    bar.textContent = `00 Hours 00 Minutes until ${nextPrayer} Iqamah`;
+    return;
+  }
+
+  const diff = adhanMs - nowMs;
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  bar.textContent = `${nextPrayer} Azaan is in ${hours} Hours ${minutes} Minutes ${seconds} Seconds`;
+
+  const vw = Math.max(1.8, Math.min(4, 4 - hours * 0.25));
+  bar.style.fontSize = vw + "vw";
+}
+
+/* ============================
+   EVENTS
+============================ */
+
+function onIqamahChange(e) {
+  if (!isAdmin) return;
+  const prayer = e.target.dataset.prayer;
+  const value = e.target.value;
+  const state = getInitialState();
+  state.iqamah[prayer] = value;
+  saveState(state);
+}
+
+document.getElementById("save-config-btn").onclick = () => {
+  if (!isAdmin) return;
+  const offset = parseInt(document.getElementById("maghrib-offset-input").value) || 0;
+  const state = getInitialState();
+  state.maghribOffset = offset;
+  saveState(state);
+  render();
+};
+
+document.getElementById("reset-iqamah-btn").onclick = () => {
+  if (!isAdmin) return;
+  const state = getInitialState();
+  state.iqamah = { ...CONFIG.defaultIqamah };
+  saveState(state);
+  render();
+};
+
+document.getElementById("admin-login-btn").onclick = () => {
+  const pwd = prompt("Enter Admin Password:");
+  if (pwd === ADMIN_PASSWORD) {
+    isAdmin = true;
+    alert("Admin mode enabled.");
+    render();
+  } else if (pwd !== null) {
+    alert("Incorrect password.");
+  }
+};
+
+/* ============================
+   CLOCK & DATE
+============================ */
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById("digital-clock").textContent =
+    now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true
+    });
+
+  document.getElementById("gregorian-date").textContent =
+    now.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    });
+}
+
+/* ============================
+   INIT
+============================ */
+
+render();
+updateCountdownBar();
+updateClock();
+
+setInterval(updateCountdownBar, 1000);
+setInterval(updateClock, 1000);
+setInterval(render, 60000);
+</script>
+
+</body>
+</html>
