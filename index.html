@@ -13,77 +13,52 @@ body {
     color: white;
 }
 
-/* TITLE */
 #barx {
     text-align: center;
     font-size: clamp(30px, 6vw, 60px);
     font-weight: 900;
-    color: white;
     background: black;
     padding: 15px;
-    text-shadow: 3px 3px 0 #000, 6px 6px 12px rgba(255,255,255,0.4);
+    text-shadow: 3px 3px 0 #000;
 }
 
-/* ADDRESS */
 #address {
     text-align: center;
     font-size: clamp(18px, 3vw, 28px);
 }
 
-/* CLOCK */
 #clock {
     text-align: center;
     font-size: clamp(40px, 8vw, 70px);
     font-weight: 900;
-    color: white;
     background: black;
     border: 5px solid red;
     padding: 15px;
     margin: 15px;
     border-radius: 12px;
-    white-space: nowrap;
-    text-shadow: 3px 3px 0 #000, 6px 6px 10px rgba(255,255,255,0.3);
+    text-shadow: 3px 3px 0 #000;
 }
 
-/* 🔴 TABLE FIX (BLACK + 3D WHITE TEXT) */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
     table-layout: fixed;
-    background: black; /* FIXED */
+    background: black;
 }
 
 td, th {
     border: 1px solid rgba(255,255,255,0.2);
     padding: 12px;
     text-align: center;
-
     font-size: clamp(18px, 4vw, 48px);
     font-weight: 900;
-
-    color: white; /* FIXED */
-
-    white-space: nowrap;
-
-    /* 🔥 3D TEXT EFFECT */
-    text-shadow:
-        2px 2px 0 #000,
-        4px 4px 0 rgba(255,255,255,0.15),
-        6px 6px 12px rgba(0,0,0,0.9);
+    color: white;
+    text-shadow: 2px 2px 0 #000;
 }
 
-/* STATES */
 .next { background: linear-gradient(135deg, #1e5eff, #0033ff) !important; }
 .active { background: green !important; }
 
-/* IQAMAH */
-.iq {
-    cursor: pointer;
-    color: #ffffff;
-}
-
-/* COUNTDOWN */
 #countdown {
     margin-top: 15px;
     padding: 20px;
@@ -93,10 +68,8 @@ td, th {
     background: green;
     color: white;
     display: none;
-    white-space: nowrap;
 }
 
-/* BUTTON */
 button {
     width: 100%;
     margin-top: 10px;
@@ -107,23 +80,20 @@ button {
     color: white;
 }
 
-/* ZELLE */
-#zelle {
-    margin-top: 30px;
+* { box-sizing: border-box; }
+
+/* ⭐ UPDATED DONATION SECTION */
+#donate {
+    margin-top: 35px;
+    background: black;
     padding: 25px;
     text-align: center;
+    color: yellow;
     font-size: clamp(18px, 3vw, 34px);
     font-weight: 900;
-    color: #00ffcc;
+    line-height: 1.6;
+    border-top: 3px solid yellow;
 }
-
-#zelle a {
-    color: yellow;
-    display: block;
-    margin-top: 10px;
-}
-
-* { box-sizing: border-box; }
 
 </style>
 </head>
@@ -150,20 +120,17 @@ button {
 
 <button id="magBtn">Maghrib Offset (minutes)</button>
 
-<div id="zelle">
-Zelle Donation: 209-327-7472
-<br>
-<a href="mailto:alaqsacenter210@gmail.com">
-Maktab Fee: alaqsacenter210@gmail.com
-</a>
+<!-- ⭐ UPDATED DONATION SECTION -->
+<div id="donate">
+Donate to Masjid (Zelle): 209-327-7472<br><br>
+Pay Maktab Fee: alaqsacenter210@gmail.com
 </div>
 
 <script>
 
-/* PASSWORD */
 const PASSWORD = "Pakistan2026$";
+const DEFAULT_MAGHRIB = 3;
 
-/* STORAGE */
 let stored = JSON.parse(localStorage.getItem("masjid_final")) || {
     maghribOffset: 0,
     iqamah: {
@@ -194,6 +161,7 @@ function checkPass(){
     return prompt("Enter Password:") === PASSWORD;
 }
 
+/* TIME HELPERS */
 function toMin(t){
     let [time,ampm]=t.split(" ");
     let [h,m]=time.split(":").map(Number);
@@ -202,28 +170,34 @@ function toMin(t){
     return h*60+m;
 }
 
-function getAzan(name){
+function fromMin(min){
+    let h=Math.floor(min/60)%24;
+    let m=min%60;
+    let ap=h>=12?"PM":"AM";
+    h=h%12||12;
+    return `${h}:${String(m).padStart(2,'0')} ${ap}`;
+}
 
-    if(name==="Jummah") return baseAzan.Dhuhr;
+/* MAGHRIB +3 DEFAULT */
+function maghribOffset(){
+    return (stored.maghribOffset||0) + DEFAULT_MAGHRIB;
+}
 
-    if(name==="Maghrib"){
-        let [t]=baseAzan.Maghrib.split(" ");
-        let [h,m]=t.split(":").map(Number);
+function shift(t, mins){
+    return fromMin(toMin(t)+mins);
+}
 
-        let d=new Date();
-        d.setHours(h);
-        d.setMinutes(m + stored.maghribOffset);
+/* AZAAN */
+function getAzan(n){
+    if(n==="Jummah") return baseAzan.Dhuhr;
+    if(n==="Maghrib") return shift(baseAzan.Maghrib, maghribOffset());
+    return baseAzan[n];
+}
 
-        let hh=d.getHours();
-        let mm=d.getMinutes();
-
-        let ap=hh>=12?"PM":"AM";
-        hh=hh%12||12;
-
-        return `${hh}:${String(mm).padStart(2,'0')} ${ap}`;
-    }
-
-    return baseAzan[name];
+/* IQAMAH */
+function getIqamah(n){
+    if(n==="Maghrib") return shift(iqamah.Maghrib, maghribOffset());
+    return iqamah[n];
 }
 
 /* CLOCK */
@@ -233,11 +207,10 @@ setInterval(()=>{
     updateCountdown();
 },1000);
 
+/* EDIT */
 function editIq(n){
-
     if(!checkPass()) return;
-
-    let v = prompt("Update Iqamah", iqamah[n]);
+    let v=prompt("Update Iqamah", iqamah[n]);
     if(v){
         iqamah[n]=v;
         save();
@@ -245,10 +218,9 @@ function editIq(n){
     }
 }
 
+/* OFFSET */
 document.getElementById("magBtn").onclick=()=>{
-
     if(!checkPass()) return;
-
     let v=prompt("Offset minutes", stored.maghribOffset);
     if(v!==null){
         stored.maghribOffset=parseInt(v)||0;
@@ -257,35 +229,32 @@ document.getElementById("magBtn").onclick=()=>{
     }
 };
 
+/* NEXT */
 function nextIndex(order){
     let now=new Date().getHours()*60 + new Date().getMinutes();
     for(let i=0;i<order.length;i++){
-        let iq = (order[i]==="Maghrib")
-            ? toMin(getAzan("Maghrib"))
-            : toMin(iqamah[order[i]]);
-        if(now <= iq + 10) return i;
+        let iq=toMin(getIqamah(order[i]));
+        if(now<=iq+10) return i;
     }
     return 0;
 }
 
+/* COUNTDOWN */
 function updateCountdown(){
     let order=["Fajr","Dhuhr","Asr","Maghrib","Isha","Jummah"];
     let now=new Date().getHours()*60 + new Date().getMinutes();
 
     for(let i=0;i<order.length;i++){
-        let iq = (order[i]==="Maghrib")
-            ? toMin(getAzan("Maghrib"))
-            : toMin(iqamah[order[i]]);
+        let iq=toMin(getIqamah(order[i]));
+        let diff=iq-now;
 
-        let diff = iq - now;
-
-        if(diff <= 10 && diff > 0){
-            let min = Math.floor(diff);
-            let sec = 60 - new Date().getSeconds();
+        if(diff<=10 && diff>0){
+            let min=Math.floor(diff);
+            let sec=60-new Date().getSeconds();
 
             document.getElementById("countdown").style.display="block";
-            document.getElementById("countdown").innerText =
-                `${min}:${String(sec).padStart(2,'0')} MINUTES LEFT`;
+            document.getElementById("countdown").innerText=
+                `${min}:${String(sec).padStart(2,'0')} MIN LEFT`;
             return;
         }
     }
@@ -293,10 +262,11 @@ function updateCountdown(){
     document.getElementById("countdown").style.display="none";
 }
 
+/* RENDER */
 function render(){
 
     let order=["Fajr","Dhuhr","Asr","Maghrib","Isha","Jummah"];
-    let next = nextIndex(order);
+    let next=nextIndex(order);
     let now=new Date().getHours()*60 + new Date().getMinutes();
 
     let table=document.getElementById("table");
@@ -305,27 +275,17 @@ function render(){
     for(let i=0;i<order.length;i++){
 
         let n=order[i];
-
-        let iqDisplay = (n==="Maghrib")
-            ? getAzan("Maghrib")
-            : iqamah[n];
-
-        let iq = (n==="Maghrib")
-            ? toMin(getAzan("Maghrib"))
-            : toMin(iqamah[n]);
+        let iq=toMin(getIqamah(n));
 
         let row=document.createElement("tr");
 
-        if(now >= iq && now <= iq+2){
-            row.className="active";
-        } else if(i===next){
-            row.className="next";
-        }
+        if(now>=iq && now<=iq+2) row.className="active";
+        else if(i===next) row.className="next";
 
         row.innerHTML=`
             <td>${n}</td>
             <td>${getAzan(n)}</td>
-            <td onclick="editIq('${n}')">${iqDisplay}</td>
+            <td onclick="editIq('${n}')">${getIqamah(n)}</td>
         `;
 
         table.appendChild(row);
