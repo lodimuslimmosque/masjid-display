@@ -202,21 +202,35 @@
 
 <script>
 /* ============================
-   CONFIG & STATIC SCHEDULE
+   12-MONTH PRAYER SCHEDULE (INLINE)
+   KEYED BY YYYY-MM-DD
+   >>> Fill this from your official timetable <<<
+============================ */
+
+const PRAYER_SCHEDULE = {
+  // Example: today (adjust date string to match your real today)
+  // Lodi, CA – Hanafi, ISNA, 15° – Dhuhr Adhan 1:04 PM
+  "2026-04-23": {
+    Fajr:   "05:00 AM",
+    Dhuhr:  "01:04 PM",
+    Asr:    "05:00 PM",
+    Maghrib:"07:51 PM",
+    Isha:   "09:00 PM"
+  }
+
+  // Add more dates like:
+  // "2026-04-24": { Fajr:"04:59 AM", Dhuhr:"01:04 PM", Asr:"05:01 PM", Maghrib:"07:52 PM", Isha:"09:01 PM" },
+  // ...
+  // Continue for full 12 months, including DST changes.
+};
+
+/* ============================
+   APP CONFIG
 ============================ */
 
 const APP_KEY = "lodi_prayer_app_v1_static";
 const ADMIN_PASSWORD = "Pakistan2026$";
 let isAdmin = false;
-
-// TODAY Maghrib = 7:51 PM
-const STATIC_ADHAN = {
-  Fajr:   "05:30 AM",
-  Dhuhr:  "01:15 PM",
-  Asr:    "05:00 PM",
-  Maghrib:"07:51 PM",
-  Isha:   "09:00 PM"
-};
 
 const CONFIG = {
   defaultMaghribOffset: 3,
@@ -253,8 +267,33 @@ function getInitialState() {
 }
 
 /* ============================
-   TIME HELPERS
+   DATE & TIME HELPERS
 ============================ */
+
+function todayKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getTodayAdhanTimes() {
+  const key = todayKey();
+  const base = PRAYER_SCHEDULE[key];
+
+  if (!base) {
+    // Fallback if date missing – you will fill PRAYER_SCHEDULE fully
+    return {
+      Fajr:   "05:30 AM",
+      Dhuhr:  "01:04 PM",
+      Asr:    "05:00 PM",
+      Maghrib:"07:51 PM",
+      Isha:   "09:00 PM"
+    };
+  }
+  return base;
+}
 
 function parse12h(str) {
   // expects "h:mm AM" or "hh:mm PM"
@@ -294,15 +333,16 @@ function render() {
   const now = new Date();
   let upcoming = null;
 
+  const todayAdhan = getTodayAdhanTimes();
   const adhanTimes = {
-    Fajr:    parse12h(STATIC_ADHAN.Fajr),
-    Dhuhr:   parse12h(STATIC_ADHAN.Dhuhr),
-    Asr:     parse12h(STATIC_ADHAN.Asr),
-    Maghrib: addMinutes(parse12h(STATIC_ADHAN.Maghrib), state.maghribOffset),
-    Isha:    parse12h(STATIC_ADHAN.Isha)
+    Fajr:    parse12h(todayAdhan.Fajr),
+    Dhuhr:   parse12h(todayAdhan.Dhuhr),
+    Asr:     parse12h(todayAdhan.Asr),
+    Maghrib: addMinutes(parse12h(todayAdhan.Maghrib), state.maghribOffset),
+    Isha:    parse12h(todayAdhan.Isha)
   };
 
-  // Next prayer based on Adhan (fix: ensures Dhuhr is next at 10 AM)
+  // Next prayer based on Adhan (so at ~10 AM, next is Dhuhr)
   prayers.forEach(prayer => {
     if (adhanTimes[prayer] > now && upcoming === null) {
       upcoming = prayer;
@@ -331,7 +371,7 @@ function render() {
   jummahRow.innerHTML = `
     <td>Jumu’ah</td>
     <td>${to12h(adhanTimes.Dhuhr)}</td>
-    <td>2:45 PM</td>
+    <td>${CONFIG.jummahIqamah}</td>
   `;
   tbody.appendChild(jummahRow);
 
@@ -356,12 +396,13 @@ function updateCountdownBar() {
   const prayers = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
   const now = new Date();
 
+  const todayAdhan = getTodayAdhanTimes();
   const adhanTimes = {
-    Fajr:    parse12h(STATIC_ADHAN.Fajr),
-    Dhuhr:   parse12h(STATIC_ADHAN.Dhuhr),
-    Asr:     parse12h(STATIC_ADHAN.Asr),
-    Maghrib: addMinutes(parse12h(STATIC_ADHAN.Maghrib), state.maghribOffset),
-    Isha:    parse12h(STATIC_ADHAN.Isha)
+    Fajr:    parse12h(todayAdhan.Fajr),
+    Dhuhr:   parse12h(todayAdhan.Dhuhr),
+    Asr:     parse12h(todayAdhan.Asr),
+    Maghrib: addMinutes(parse12h(todayAdhan.Maghrib), state.maghribOffset),
+    Isha:    parse12h(todayAdhan.Isha)
   };
 
   let nextPrayer = null;
@@ -378,10 +419,12 @@ function updateCountdownBar() {
     }
   }
 
-  // If no more Adhan today → next is tomorrow Fajr
+  // If no more Adhan today → next is tomorrow Fajr (using tomorrow's schedule if present)
   if (!nextPrayer) {
     nextPrayer = "Fajr";
-    nextAdhan = addMinutes(parse12h(STATIC_ADHAN.Fajr), 24 * 60);
+    // naive: use today's Fajr + 24h; if you fill PRAYER_SCHEDULE fully,
+    // you can enhance this to read tomorrow's entry instead.
+    nextAdhan = addMinutes(parse12h(todayAdhan.Fajr), 24 * 60);
     nextIqamah = addMinutes(parse12h(getInitialState().iqamah.Fajr), 24 * 60);
   }
 
@@ -424,9 +467,9 @@ function updateCountdownBar() {
 function onIqamahChange(e) {
   if (!isAdmin) return;
   const prayer = e.target.dataset.prayer;
-  const value = e.target.value.trim();
+  const value = e.target.value.trim(); // expects "h:mm AM/PM"
   const state = getInitialState();
-  state.iqamah[prayer] = value; // expects "h:mm AM/PM"
+  state.iqamah[prayer] = value;
   saveState(state);
 }
 
